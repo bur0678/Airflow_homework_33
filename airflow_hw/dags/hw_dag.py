@@ -1,0 +1,42 @@
+import sys
+import os
+import datetime as dt
+from airflow.sdk import DAG
+from airflow.providers.standard.operators.python import PythonOperator
+
+
+path = "/opt/airflow/plugins"
+os.environ['PROJECT_PATH'] = path
+sys.path.insert(0, path)
+
+
+from modules.pipeline import pipeline
+from modules.predict import predict
+
+
+args = {
+    'owner': 'airflow',
+    'start_date': dt.datetime(2025, 11, 10),
+    'retries': 1,
+    'retry_delay': dt.timedelta(minutes=1),
+    'depends_on_past': False,
+}
+
+with DAG(
+        dag_id='car_price_prediction',
+        schedule='00 15 * * *',
+        default_args=args,
+) as dag:
+    pipeline = PythonOperator(
+        task_id='pipeline',
+        python_callable=pipeline,
+        dag=dag,
+    )
+    predict = PythonOperator(
+        task_id = 'predict',
+        python_callable = predict,
+        dag=dag,
+    )
+
+    pipeline >> predict
+
